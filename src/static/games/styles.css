@@ -1,0 +1,128 @@
+/* Steam Manager — estilos para juegos */
+:root{
+  --bg:#0b1220;--panel:#1a2332;--panel2:#1f2937;--line:#2d3f55;
+  --text:#e2e8f0;--muted:#7a90a8;--accent:#0ea5e9;--accent2:#0284c7;
+  --green:#22c55e;--red:#ef4444;--amber:#f59e0b;--radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+
+/* ── Barra superior ── */
+.game-topbar{
+  background:var(--panel);border-bottom:1px solid var(--line);
+  padding:10px 20px;display:flex;align-items:center;gap:14px;
+  position:sticky;top:0;z-index:100;height:52px;
+}
+.back-link{
+  color:var(--muted);font-size:.85rem;text-decoration:none;
+  display:flex;align-items:center;gap:5px;
+  padding:5px 12px;border-radius:8px;border:1px solid var(--line);
+  transition:color .15s,border-color .15s;white-space:nowrap;
+}
+.back-link:hover{color:var(--accent);border-color:var(--accent)}
+.game-title{font-size:1rem;font-weight:700;color:var(--text)}
+.session-msg{
+  margin-left:auto;font-size:.8rem;padding:4px 14px;
+  border-radius:20px;white-space:nowrap;
+}
+.session-msg[data-type="success"]{background:#052e16;color:#86efac;border:1px solid #166534}
+.session-msg[data-type="info"]{background:#0c1a2e;color:#93c5fd;border:1px solid #1e40af}
+
+/* ── Contenedor principal ── */
+.game-wrap{max-width:800px;width:100%;margin:0 auto;padding:20px 16px;flex:1}
+
+/* ── Panel de control de sesión ── */
+.session-panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:20px 24px;margin-bottom:20px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.session-panel .session-info{flex:1;min-width:180px}
+.session-panel .session-info h3{font-size:.95rem;font-weight:600;margin-bottom:4px}
+.session-panel .session-info p{font-size:.8rem;color:var(--muted)}
+.session-btns{display:flex;gap:10px}
+
+/* ── Botones generales ── */
+button{
+  cursor:pointer;font-family:inherit;font-size:.875rem;border:none;
+  border-radius:8px;padding:9px 20px;font-weight:600;
+  transition:opacity .15s,background .15s,transform .1s;
+}
+button:hover:not([disabled]){opacity:.88}
+button:active:not([disabled]){transform:scale(.97)}
+button[disabled]{opacity:.38;cursor:not-allowed}
+
+#startBtn{
+  background:var(--green);color:#fff;
+  padding:11px 28px;font-size:.95rem;
+  box-shadow:0 0 20px rgba(34,197,94,.25);
+}
+#endBtn{
+  background:var(--panel2);color:var(--muted);
+  border:1px solid var(--line);padding:11px 20px;
+}
+#endBtn:not([disabled]){color:var(--red);border-color:var(--red)}
+
+/* ── Panel del juego ── */
+.panel{
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:20px;margin-bottom:16px;
+}
+.panel h2,h2{font-size:1rem;font-weight:600;margin-bottom:12px;color:var(--text)}
+p{color:var(--muted);font-size:.875rem;line-height:1.6;margin-bottom:8px}
+
+/* ── Row legacy (game-utils) ── */
+.row{display:none} /* ocultamos el row original, usamos session-panel */
+
+/* ── Estado y score ── */
+#stateLabel,#scoreLabel,#feedback,#snakeInfo,#result{
+  font-size:.875rem;color:var(--muted);margin:6px 0;
+}
+#feedback{color:var(--green);font-weight:600}
+
+/* ── Canvas ── */
+canvas{
+  border-radius:10px;border:1px solid var(--line);
+  display:block;margin:12px auto;background:#0b1220;
+}
+
+/* ── Tableros ── */
+.board3{display:grid;grid-template-columns:repeat(3,84px);gap:6px;margin:12px auto;width:fit-content}
+.board3 button{height:84px;font-size:2rem;background:var(--panel2);border:2px solid var(--line);border-radius:10px;color:var(--text)}
+.board3 button:hover:not([disabled]){border-color:var(--accent);background:var(--panel)}
+
+.chess-board{display:grid;grid-template-columns:repeat(8,52px);width:max-content;border:2px solid var(--line);border-radius:10px;overflow:hidden;margin:12px auto}
+.chess-square{width:52px;height:52px;font-size:28px;display:grid;place-items:center;cursor:pointer;border:none;transition:opacity .1s}
+.chess-square.light{background:#e8eaf6;color:#1a237e}
+.chess-square.dark{background:#3949ab;color:#e8eaf6}
+.chess-square.selected{outline:3px solid var(--green);outline-offset:-3px}
+
+.mine-grid{display:grid;gap:4px;margin:12px auto;width:fit-content}
+.mine-cell{width:34px;height:34px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;font-size:.82rem;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .1s}
+.mine-cell:hover:not(.revealed){background:var(--line)}
+.mine-cell.revealed{background:var(--bg);cursor:default;border-color:transparent}
+.mine-cell.flagged{background:#1c0a00;color:var(--amber)}
+
+.puzzle-grid{display:grid;grid-template-columns:repeat(3,90px);gap:6px;margin:12px auto;width:fit-content}
+.puzzle-cell{height:90px;background:var(--accent);color:#fff;font-size:1.8rem;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s,transform .1s}
+.puzzle-cell:hover{background:var(--accent2)}
+.puzzle-cell:active{transform:scale(.95)}
+.puzzle-cell.empty{background:var(--panel2);cursor:default}
+
+/* ── Piedra papel tijera ── */
+.ppt-options{display:flex;gap:12px;justify-content:center;margin:16px 0;flex-wrap:wrap}
+.ppt-options button{font-size:2.2rem;padding:16px 24px;background:var(--panel2);border:2px solid var(--line);border-radius:14px;min-width:90px}
+.ppt-options button:hover:not([disabled]){border-color:var(--accent);transform:translateY(-2px)}
+
+/* ── Botón reiniciar ── */
+#restartBtn{
+  background:transparent;border:1px solid var(--line);color:var(--muted);
+  padding:7px 16px;font-size:.82rem;margin-top:10px;
+}
+#restartBtn:hover{color:var(--text);border-color:var(--text)}
+
+/* ── Tabla ── */
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left}
+th{background:var(--panel2);color:var(--muted);font-size:.78rem}
+input{background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;font-size:.875rem;font-family:inherit}

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title id="title"></title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .puzzle-wrap {
+        max-width: 360px;
+        margin: 0 auto;
+      }
+
+      .hud {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin: 0.75rem 0;
+        font-weight: 600;
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        background: #e2e8f0;
+        padding: 10px;
+        border-radius: 12px;
+      }
+
+      .tile {
+        aspect-ratio: 1 / 1;
+        border: 0;
+        border-radius: 10px;
+        font-size: 1.35rem;
+        font-weight: 700;
+        background: #2563eb;
+        color: #fff;
+        cursor: pointer;
+        transition: transform 0.15s ease, background-color 0.2s ease, opacity 0.2s ease;
+      }
+
+      .tile:hover {
+        transform: translateY(-2px);
+      }
+
+      .tile.valid {
+        background: #1d4ed8;
+      }
+
+      .tile.empty {
+        background: #cbd5e1;
+        cursor: default;
+        opacity: 0.5;
+      }
+
+      #status {
+        margin-top: 0.8rem;
+        min-height: 1.5rem;
+        font-weight: 700;
+      }
+
+      #status.win {
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body>
+  <nav class="game-topbar">
+    <a class="back-link" href="/">← Volver al catálogo</a>
+    <span class="game-title" id="gameName">Rompecabezas 8</span>
+    <span class="session-msg" id="sessionMsg"></span>
+  </nav>
+  <main class="game-wrap">
+    <div class="session-panel">
+      <div class="session-info">
+        <h3>Rompecabezas 8</h3>
+        <p>Inicia la partida para comenzar a jugar</p>
+      </div>
+      <div class="session-btns">
+        <button id="startBtn">▶ Iniciar partida</button>
+        <button id="endBtn" disabled>⏹ Finalizar</button>
+      </div>
+    </div>
+    <div id="area"></div>
+  </main>
+
+    <script>
+      const GAME_NAME = 'Rompecabezas 8';
+    </script>
+    <script src="game-base.js"></script>
+    <script>
+      const SOLVED = [1, 2, 3, 4, 5, 6, 7, 8, 0];
+      let board = [...SOLVED];
+      let moves = 0;
+      let timerSeconds = 0;
+      let timerId = null;
+      let won = false;
+
+      area.innerHTML = `
+        <section class="puzzle-wrap">
+          <div class="hud">
+            <div>Movimientos: <span id="moves">0</span></div>
+            <div>Tiempo: <span id="timer">00:00</span></div>
+          </div>
+          <div id="board" class="board"></div>
+          <div class="row" style="margin-top: 0.75rem; justify-content: center;">
+            <button id="restartBtn">Reiniciar</button>
+          </div>
+          <p id="status"></p>
+        </section>
+      `;
+
+      const boardEl = document.getElementById('board');
+      const movesEl = document.getElementById('moves');
+      const timerEl = document.getElementById('timer');
+      const statusEl = document.getElementById('status');
+      const restartBtn = document.getElementById('restartBtn');
+
+      function formatTime(totalSeconds) {
+        const mm = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+        const ss = String(totalSeconds % 60).padStart(2, '0');
+        return `${mm}:${ss}`;
+      }
+
+      function startTimer() {
+        if (timerId) {
+          clearInterval(timerId);
+        }
+        timerId = setInterval(() => {
+          timerSeconds += 1;
+          timerEl.textContent = formatTime(timerSeconds);
+        }, 1000);
+      }
+
+      function stopTimer() {
+        if (!timerId) return;
+        clearInterval(timerId);
+        timerId = null;
+      }
+
+      function isSolved() {
+        return board.every((v, i) => v === SOLVED[i]);
+      }
+
+      function getValidIndexes() {
+        const zero = board.indexOf(0);
+        const zr = Math.floor(zero / 3);
+        const zc = zero % 3;
+        const candidates = [];
+
+        for (let i = 0; i < 9; i++) {
+          if (board[i] === 0) continue;
+          const r = Math.floor(i / 3);
+          const c = i % 3;
+          const manhattan = Math.abs(r - zr) + Math.abs(c - zc);
+          if (manhattan === 1) candidates.push(i);
+        }
+
+        return candidates;
+      }
+
+      function shuffleSolvable() {
+        board = [...SOLVED];
+        let zero = 8;
+        let lastZero = -1;
+
+        for (let step = 0; step < 120; step++) {
+          const zr = Math.floor(zero / 3);
+          const zc = zero % 3;
+          const nextZeros = [];
+
+          if (zr > 0) nextZeros.push(zero - 3);
+          if (zr < 2) nextZeros.push(zero + 3);
+          if (zc > 0) nextZeros.push(zero - 1);
+          if (zc < 2) nextZeros.push(zero + 1);
+
+          const filtered = nextZeros.filter((idx) => idx !== lastZero);
+          const options = filtered.length ? filtered : nextZeros;
+          const nextZero = options[Math.floor(Math.random() * options.length)];
+
+          [board[zero], board[nextZero]] = [board[nextZero], board[zero]];
+          lastZero = zero;
+          zero = nextZero;
+        }
+
+        if (isSolved()) {
+          [board[7], board[8]] = [board[8], board[7]];
+        }
+      }
+
+      function render() {
+        const valid = new Set(getValidIndexes());
+        boardEl.innerHTML = '';
+
+        board.forEach((value, index) => {
+          const btn = document.createElement('button');
+          btn.className = 'tile';
+          btn.type = 'button';
+
+          if (value === 0) {
+            btn.classList.add('empty');
+            btn.disabled = true;
+            btn.textContent = '';
+          } else {
+            btn.textContent = String(value);
+            if (valid.has(index) && !won) {
+              btn.classList.add('valid');
+            }
+          }
+
+          btn.onclick = () => handleMove(index);
+          boardEl.appendChild(btn);
+        });
+
+        movesEl.textContent = String(moves);
+        timerEl.textContent = formatTime(timerSeconds);
+      }
+
+      function handleMove(index) {
+        if (won || board[index] === 0) return;
+
+        const valid = getValidIndexes();
+        if (!valid.includes(index)) return;
+
+        const zero = board.indexOf(0);
+        [board[index], board[zero]] = [board[zero], board[index]];
+        moves += 1;
+
+        if (isSolved()) {
+          won = true;
+          stopTimer();
+          statusEl.textContent = `¡Ganaste! Resuelto en ${moves} movimientos y ${formatTime(timerSeconds)}.`;
+          statusEl.classList.add('win');
+        }
+
+        render();
+      }
+
+      function resetGame() {
+        moves = 0;
+        timerSeconds = 0;
+        won = false;
+        statusEl.textContent = '';
+        statusEl.classList.remove('win');
+        shuffleSolvable();
+        startTimer();
+        render();
+      }
+
+      restartBtn.onclick = resetGame;
+      resetGame();
+    </script>
+  </body>
+</html>

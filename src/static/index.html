@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Steam Manager</title>
+<style>
+/* ── RESET & TOKENS ─────────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b1220;--panel:#1a2332;--panel2:#1f2937;--line:#2d3f55;
+  --text:#e2e8f0;--muted:#7a90a8;--accent:#0ea5e9;--accent2:#0284c7;
+  --green:#22c55e;--red:#ef4444;--amber:#f59e0b;--purple:#a78bfa;
+  --radius:10px;--radius-lg:14px;
+}
+html,body{height:100%}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh}
+a{color:var(--accent);text-decoration:none}
+button{cursor:pointer;font-family:inherit;font-size:.875rem;border:none;border-radius:8px;padding:8px 16px;font-weight:600;transition:opacity .15s,background .15s}
+button:hover{opacity:.88}
+button.btn-primary{background:var(--accent);color:#fff}
+button.btn-secondary{background:transparent;border:1px solid var(--line);color:var(--text)}
+button.btn-danger{background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d}
+button.btn-sm{padding:5px 11px;font-size:.78rem}
+button.btn-icon{background:transparent;border:1px solid var(--line);color:var(--muted);padding:6px 10px}
+button.btn-icon:hover{color:var(--text);border-color:var(--accent)}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 12px;font-size:.875rem;font-family:inherit;width:100%;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+label{font-size:.82rem;color:var(--muted);display:block;margin-bottom:4px}
+.field{margin-bottom:14px}
+/* ── NAVBAR ─────────────────────────────────────────────────────────────── */
+nav{background:var(--panel);border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;gap:0;position:sticky;top:0;z-index:100;height:52px}
+.nav-logo{font-size:1.1rem;font-weight:700;color:var(--accent);margin-right:24px;white-space:nowrap}
+.nav-links{display:flex;gap:2px;flex:1}
+.nav-link{padding:8px 14px;border-radius:8px;font-size:.875rem;color:var(--muted);cursor:pointer;transition:color .15s,background .15s;border:none;background:none;font-family:inherit;font-weight:500}
+.nav-link:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.nav-link.active{color:var(--accent);background:rgba(14,165,233,.1)}
+.nav-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.nav-user{font-size:.82rem;color:var(--muted)}
+.nav-badge{background:var(--accent);color:#fff;font-size:.7rem;padding:2px 7px;border-radius:20px;font-weight:700}
+/* ── LAYOUT ─────────────────────────────────────────────────────────────── */
+main{flex:1;max-width:1200px;width:100%;margin:0 auto;padding:24px 16px}
+.view{display:none}
+.view.active{display:block}
+/* ── TOAST ──────────────────────────────────────────────────────────────── */
+#toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:999}
+.toast{padding:11px 16px;border-radius:10px;font-size:.875rem;font-weight:500;max-width:320px;animation:slide-in .2s ease;display:flex;align-items:center;gap:8px}
+.toast.ok{background:#052e16;color:#86efac;border:1px solid #166534}
+.toast.err{background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d}
+.toast.info{background:#0c1a2e;color:#93c5fd;border:1px solid #1e40af}
+.toast.warn{background:#1c1100;color:#fde68a;border:1px solid #92400e}
+@keyframes slide-in{from{transform:translateX(60px);opacity:0}to{transform:translateX(0);opacity:1}}
+/* ── LOADING ────────────────────────────────────────────────────────────── */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-row{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.875rem;padding:24px 0}
+/* ── HERO SECTION ───────────────────────────────────────────────────────── */
+.hero{background:linear-gradient(135deg,#0c2340,#0f172a);border:1px solid var(--line);border-radius:var(--radius-lg);padding:32px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.hero h1{font-size:1.6rem;font-weight:700;margin-bottom:6px}
+.hero p{color:var(--muted);font-size:.9rem}
+.hero-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+/* ── FILTERS BAR ────────────────────────────────────────────────────────── */
+.filters-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center}
+.filters-bar select,.filters-bar input{max-width:180px;flex:none}
+.results-count{margin-left:auto;font-size:.82rem;color:var(--muted)}
+/* ── GAMES GRID ─────────────────────────────────────────────────────────── */
+.games-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.game-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden;transition:border-color .2s,transform .15s;cursor:pointer}
+.game-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.game-card-cover{height:120px;background:linear-gradient(135deg,#1a3a5c,#0f2240);display:flex;align-items:center;justify-content:center;font-size:2.2rem;position:relative}
+.game-card-cover .type-badge{position:absolute;top:8px;right:8px;font-size:.68rem;padding:2px 7px;border-radius:20px;font-weight:600;text-transform:uppercase}
+.type-badge.indie{background:#1e1b4b;color:#a5b4fc}
+.type-badge.aaa{background:#1c0a00;color:#fdba74}
+.type-badge.free_to_play{background:#052e16;color:#86efac}
+.type-badge.early_access{background:#1c1100;color:#fde68a}
+.game-card-body{padding:12px}
+.game-card-body h4{font-size:.92rem;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.game-card-meta{font-size:.75rem;color:var(--muted);margin-bottom:8px}
+.game-card-footer{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.price-tag{font-size:.95rem;font-weight:700;color:var(--accent)}
+.price-tag.free{color:var(--green)}
+.in-library-badge{font-size:.72rem;color:var(--green);display:flex;align-items:center;gap:3px}
+/* ── GAME DETAIL ────────────────────────────────────────────────────────── */
+.back-btn{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:.875rem;margin-bottom:20px;background:none;border:none;cursor:pointer;padding:0}
+.back-btn:hover{color:var(--text)}
+.detail-layout{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start}
+.detail-cover{height:240px;background:linear-gradient(135deg,#1a3a5c,#0f2240);border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;font-size:4rem;margin-bottom:16px;border:1px solid var(--line)}
+.detail-title{font-size:1.5rem;font-weight:700;margin-bottom:6px}
+.detail-meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.detail-meta span{font-size:.8rem;padding:3px 10px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+.detail-desc{color:var(--muted);font-size:.9rem;line-height:1.7;margin-bottom:20px}
+.detail-sidebar{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:20px;position:sticky;top:70px}
+.detail-price{font-size:1.8rem;font-weight:700;color:var(--accent);margin-bottom:16px}
+.detail-price.free{color:var(--green)}
+.detail-actions{display:flex;flex-direction:column;gap:8px}
+/* ── REVIEWS ────────────────────────────────────────────────────────────── */
+.reviews-section{margin-top:28px}
+.reviews-section h3{font-size:1rem;font-weight:600;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.review-form{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;margin-bottom:18px}
+.review-form h4{font-size:.9rem;font-weight:600;margin-bottom:12px}
+.star-row{display:flex;gap:4px;margin-bottom:12px}
+.star{font-size:1.4rem;cursor:pointer;color:var(--line);transition:color .1s}
+.star.active{color:var(--amber)}
+.review-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.review-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.review-user{font-size:.82rem;font-weight:600;color:var(--accent)}
+.review-rating{color:var(--amber);font-size:.85rem}
+.review-content{font-size:.85rem;color:var(--muted);line-height:1.6}
+.review-date{font-size:.75rem;color:var(--line);margin-top:4px}
+/* ── LIBRARY ────────────────────────────────────────────────────────────── */
+.library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.library-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;display:flex;gap:14px;align-items:center}
+.library-icon{width:52px;height:52px;background:linear-gradient(135deg,#1a3a5c,#0f2240);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+.library-info{flex:1;min-width:0}
+.library-info h4{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.library-info .lib-meta{font-size:.75rem;color:var(--muted);margin-top:2px}
+.library-actions{display:flex;gap:6px;margin-top:8px}
+/* ── PROFILE ────────────────────────────────────────────────────────────── */
+.profile-header{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;display:flex;align-items:center;gap:20px}
+.profile-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--purple));display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;flex-shrink:0}
+.profile-info h2{font-size:1.2rem;font-weight:700}
+.profile-info .role-badge{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:20px;background:#1e1b4b;color:#a5b4fc;margin-top:4px}
+.profile-info .role-badge.admin{background:#1c0a00;color:#fdba74}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;text-align:center}
+.stat-card .stat-num{font-size:1.6rem;font-weight:700;color:var(--accent)}
+.stat-card .stat-label{font-size:.78rem;color:var(--muted);margin-top:4px}
+/* ── ADMIN ──────────────────────────────────────────────────────────────── */
+.admin-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.admin-header h2{font-size:1.1rem;font-weight:700}
+.admin-table-wrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+.admin-tab{border-radius:8px;padding:6px 14px}
+.admin-tab.active{background:rgba(14,165,233,.15);color:var(--accent);border-color:var(--accent)}
+.role-pill{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:20px;font-weight:600}
+.role-pill.admin{background:#1c0a00;color:#fdba74}
+.role-pill.user{background:#0c1a2e;color:#93c5fd}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{background:var(--panel2);padding:10px 14px;text-align:left;font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line)}
+td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.td-actions{display:flex;gap:6px}
+/* ── MODAL ──────────────────────────────────────────────────────────────── */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:1rem;font-weight:700;margin-bottom:18px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+/* ── AUTH VIEW ──────────────────────────────────────────────────────────── */
+.auth-wrap{max-width:400px;margin:40px auto}
+.auth-tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:20px}
+.auth-tab{padding:10px 20px;background:none;border:none;color:var(--muted);font-size:.9rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.auth-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.auth-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:24px}
+/* ── EMPTY STATE ────────────────────────────────────────────────────────── */
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty .empty-icon{font-size:2.4rem;margin-bottom:12px}
+.empty p{font-size:.9rem}
+/* ── RESPONSIVE ─────────────────────────────────────────────────────────── */
+@media(max-width:768px){
+  .detail-layout{grid-template-columns:1fr}
+  .detail-sidebar{position:static}
+  nav{padding:0 12px}
+  .nav-links .nav-link span{display:none}
+  main{padding:16px 10px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-logo">🎮 Steam Manager</div>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="navigate('store')" data-view="store">Tienda</button>
+    <button class="nav-link" onclick="navigate('library')" data-view="library">Biblioteca</button>
+    <button class="nav-link" id="nav-admin" onclick="navigate('admin')" data-view="admin" style="display:none">Admin</button>
+  </div>
+  <div class="nav-right">
+    <span class="nav-user" id="nav-user-label">Sin sesión</span>
+    <button class="btn-secondary btn-sm" id="nav-profile-btn" onclick="navigate('profile')" style="display:none">Mi perfil</button>
+    <button class="btn-secondary btn-sm" id="nav-login-btn" onclick="navigate('auth')">Entrar</button>
+    <button class="btn-secondary btn-sm" id="nav-logout-btn" onclick="doLogout()" style="display:none">Salir</button>
+  </div>
+</nav>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- MAIN -->
+<main>
+
+  <!-- ── STORE VIEW ── -->
+  <div id="view-store" class="view active">
+    <div class="hero">
+      <div>
+        <h1>Descubre tu próximo juego</h1>
+        <p>Explora el catálogo, añade a tu biblioteca y escribe reseñas</p>
+        <div class="hero-actions">
+          <button class="btn-primary" onclick="scrollToGames()">Ver catálogo</button>
+          <button class="btn-secondary" onclick="navigate('auth')" id="hero-login-btn">Iniciar sesión</button>
+        </div>
+      </div>
+      <div style="font-size:4rem;opacity:.3">🎮</div>
+    </div>
+    <div class="filters-bar">
+      <select id="filterGenre" onchange="loadGames()">
+        <option value="">Todos los géneros</option>
+        <option value="action">Action</option>
+        <option value="rpg">RPG</option>
+        <option value="platformer">Platformer</option>
+        <option value="strategy">Strategy</option>
+        <option value="puzzle">Puzzle</option>
+        <option value="simulation">Simulation</option>
+        <option value="horror">Horror</option>
+      </select>
+      <input id="filterPrice" type="number" placeholder="Precio máx $" style="max-width:140px" onchange="loadGames()"/>
+      <button class="btn-secondary btn-sm" onclick="clearFilters()">Limpiar filtros</button>
+      <span class="results-count" id="results-count"></span>
+    </div>
+    <div id="games-grid" class="games-grid">
+      <div class="loading-row"><div class="spinner"></div> Cargando juegos...</div>
+    </div>
+  </div>
+
+  <!-- ── GAME DETAIL VIEW ── -->
+  <div id="view-detail" class="view">
+    <button class="back-btn" onclick="navigate('store')">← Volver a la tienda</button>
+    <div id="detail-content"></div>
+  </div>
+
+  <!-- ── LIBRARY VIEW ── -->
+  <div id="view-library" class="view">
+    <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:18px">Mi biblioteca</h2>
+    <div id="library-content">
+      <div class="empty"><div class="empty-icon">📚</div><p>Inicia sesión para ver tu biblioteca</p></div>
+    </div>
+  </div>
+
+  <!-- ── PROFILE VIEW ── -->
+  <div id="view-profile" class="view">
+    <div id="profile-content">
+      <div class="empty"><div class="empty-icon">👤</div><p>Inicia sesión para ver tu perfil</p></div>
+    </div>
+  </div>
+
+  <!-- ── ADMIN VIEW ── -->
+  <div id="view-admin" class="view">
+    <div class="admin-header">
+      <h2>Panel de administración</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary btn-sm admin-tab active" onclick="switchAdminTab('games')">Juegos</button>
+        <button class="btn-secondary btn-sm admin-tab" onclick="switchAdminTab('users')">Usuarios</button>
+      </div>
+    </div>
+    <div id="admin-tab-games">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn-primary" onclick="openGameModal()">+ Nuevo juego</button>
+      </div>
+      <div class="admin-table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Título</th><th>Género</th><th>Tipo</th><th>Precio</th><th>Acciones</th></tr>
+          </thead>
+          <tbody id="admin-table-body">
+            <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:24px">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="admin-tab-users" style="display:none">
+      <div class="admin-table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Username</th><th>Email</th><th>Rol</th><th>Juegos</th><th>Tiempo total</th><th>Acciones</th></tr>
+          </thead>
+          <tbody id="admin-users-body">
+            <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:24px">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AUTH VIEW ── -->
+  <div id="view-auth" class="view">
+    <div class="auth-wrap">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login')">Iniciar sesión</button>
+        <button class="auth-tab" onclick="switchAuthTab('register')">Registrarse</button>
+      </div>
+
+      <div id="auth-login" class="auth-card">
+        <div class="field"><label>Email</label><input id="login-email" type="email" placeholder="tu@email.com"/></div>
+        <div class="field"><label>Contraseña</label><input id="login-password" type="password" placeholder="••••••••"/></div>
+        <button class="btn-primary" style="width:100%" onclick="doLogin()">Entrar</button>
+        <p style="text-align:center;margin-top:12px;font-size:.8rem;color:var(--muted)">Admin: admin@steam.com / Admin1234!</p>
+      </div>
+
+      <div id="auth-register" class="auth-card" style="display:none">
+        <div class="field"><label>Email</label><input id="reg-email" type="email" placeholder="tu@email.com"/></div>
+        <div class="field"><label>Username</label><input id="reg-username" placeholder="tu_usuario"/></div>
+        <div class="field"><label>Contraseña (mín. 8 caracteres)</label><input id="reg-password" type="password" placeholder="••••••••"/></div>
+        <button class="btn-primary" style="width:100%" onclick="doRegister()">Crear cuenta</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── GAME MODAL (create/edit) ── -->
+<div class="modal-backdrop" id="game-modal">
+  <div class="modal">
+    <h3 id="modal-title">Nuevo juego</h3>
+    <input type="hidden" id="modal-game-id"/>
+    <div class="field"><label>Título</label><input id="modal-title-input" placeholder="Nombre del juego"/></div>
+    <div class="field"><label>Descripción</label><textarea id="modal-desc" rows="3" placeholder="Descripción del juego..."></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field"><label>Género</label>
+        <select id="modal-genre">
+          <option value="action">Action</option>
+          <option value="rpg">RPG</option>
+          <option value="platformer">Platformer</option>
+          <option value="strategy">Strategy</option>
+          <option value="puzzle">Puzzle</option>
+          <option value="simulation">Simulation</option>
+          <option value="horror">Horror</option>
+          <option value="adventure">Adventure</option>
+        </select>
+      </div>
+      <div class="field"><label>Tipo</label>
+        <select id="modal-type">
+          <option value="indie">Indie</option>
+          <option value="aaa">AAA</option>
+          <option value="free_to_play">Free to Play</option>
+          <option value="early_access">Early Access</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field"><label>Precio ($)</label><input id="modal-price" type="number" step="0.01" min="0" placeholder="0.00"/></div>
+      <div class="field"><label>Desarrollador</label><input id="modal-dev" placeholder="Nombre del estudio"/></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveGame()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DELETE CONFIRM MODAL ── -->
+<div class="modal-backdrop" id="delete-modal">
+  <div class="modal" style="max-width:340px">
+    <h3>¿Eliminar juego?</h3>
+    <p style="color:var(--muted);font-size:.875rem;margin-bottom:20px">Esta acción no se puede deshacer.</p>
+    <input type="hidden" id="delete-game-id"/>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
+      <button class="btn-danger" onclick="confirmDelete()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ────────────────────────────────────────────────────────────────────
+const API = '/api/v1';
+let token = null;
+let currentUser = null;
+let myLibraryIds = new Set();
+let reviewRating = 0;
+let currentView = 'store';
+
+// ── SESSION STORAGE (localStorage con expiración de 8h) ──────────────────────
+const SESSION_KEY = 'steam_session';
+const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 horas en ms
+
+function saveSession(data) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({
+    ...data, expires: Date.now() + SESSION_TTL
+  }));
+}
+
+function loadSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (Date.now() > data.expires) { localStorage.removeItem(SESSION_KEY); return null; }
+    return data;
+  } catch { return null; }
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+// ── API HELPER ───────────────────────────────────────────────────────────────
+async function req(method, path, body = null, auth = false) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth && token) headers['Authorization'] = 'Bearer ' + token;
+  try {
+    const r = await fetch(API + path, {
+      method, headers,
+      body: body ? JSON.stringify(body) : null
+    });
+    const data = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, data };
+  } catch (e) {
+    return { ok: false, status: 0, data: { message: 'Error de conexión' } };
+  }
+}
+
+// ── TOAST ────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'ok') {
+  const icons = { ok: '✓', err: '✕', info: 'ℹ', warn: '⚠' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]}</span> ${msg}`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── NAVIGATION ───────────────────────────────────────────────────────────────
+function navigate(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const el = document.getElementById(`view-${view}`);
+  if (el) el.classList.add('active');
+  const link = document.querySelector(`[data-view="${view}"]`);
+  if (link) link.classList.add('active');
+  currentView = view;
+  if (view === 'library') loadLibrary();
+  if (view === 'profile') loadProfile();
+  if (view === 'admin') loadAdminTable();
+  if (view === 'store') loadGames();
+}
+
+function scrollToGames() {
+  document.getElementById('games-grid').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── AUTH ─────────────────────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+  });
+  document.getElementById('auth-login').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('auth-register').style.display = tab === 'register' ? 'block' : 'none';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) return toast('Completa email y contraseña', 'warn');
+  const { ok, data } = await req('POST', '/auth/login', { email, password });
+  if (ok) {
+    token = data.access_token;
+    currentUser = { id: data.user_id, role: data.role, email };
+    saveSession({ token: data.access_token, email, role: data.role, uid: data.user_id });
+    updateNavAuth();
+    await loadMyLibraryIds();
+    toast('Sesión iniciada — bienvenido');
+    navigate('store');
+  } else {
+    toast(data.message || 'Credenciales incorrectas', 'err');
+  }
+}
+
+async function doRegister() {
+  const email = document.getElementById('reg-email').value.trim();
+  const username = document.getElementById('reg-username').value.trim();
+  const password = document.getElementById('reg-password').value;
+  if (!email || !username || !password) return toast('Completa todos los campos', 'warn');
+  const { ok, data } = await req('POST', '/auth/register', { email, username, password });
+  if (ok) {
+    toast('Cuenta creada — ahora inicia sesión');
+    switchAuthTab('login');
+    document.getElementById('login-email').value = email;
+  } else {
+    toast(data.message || 'Error al registrar', 'err');
+  }
+}
+
+function doLogout() {
+  token = null;
+  currentUser = null;
+  myLibraryIds.clear();
+  clearSession();
+  updateNavAuth();
+  toast('Sesión cerrada', 'info');
+  navigate('store');
+}
+
+function updateNavAuth() {
+  const logged = !!currentUser;
+  document.getElementById('nav-user-label').textContent = logged ? currentUser.email : 'Sin sesión';
+  document.getElementById('nav-login-btn').style.display = logged ? 'none' : 'inline-block';
+  document.getElementById('nav-logout-btn').style.display = logged ? 'inline-block' : 'none';
+  document.getElementById('nav-profile-btn').style.display = logged ? 'inline-block' : 'none';
+  document.getElementById('nav-admin').style.display = (logged && currentUser.role === 'admin') ? 'inline-block' : 'none';
+  document.getElementById('hero-login-btn').style.display = logged ? 'none' : 'inline-block';
+}
+
+// ── LIBRARY IDS (para mostrar badge "en biblioteca") ─────────────────────────
+async function loadMyLibraryIds() {
+  if (!token) return;
+  const { ok, data } = await req('GET', '/library', null, true);
+  if (ok && Array.isArray(data)) {
+    myLibraryIds = new Set(data.map(e => e.game_id));
+  }
+}
+
+// ── STORE / GAMES ────────────────────────────────────────────────────────────
+const ICONS = { action: '⚔️', rpg: '🧙', platformer: '🏃', strategy: '♟️', puzzle: '🧩', simulation: '🏙️', horror: '👻', adventure: '🗺️' };
+
+async function loadGames() {
+  const genre = document.getElementById('filterGenre').value;
+  const price = document.getElementById('filterPrice').value;
+  let url = '/games?limit=50';
+  if (genre) url += '&genre=' + genre;
+  if (price) url += '&price_max=' + price;
+
+  const grid = document.getElementById('games-grid');
+  grid.innerHTML = '<div class="loading-row"><div class="spinner"></div> Cargando juegos...</div>';
+
+  const { ok, data } = await req('GET', url);
+  if (!ok || !Array.isArray(data)) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>Error al cargar juegos</p></div>';
+    return;
+  }
+  document.getElementById('results-count').textContent = `${data.length} juego${data.length !== 1 ? 's' : ''}`;
+  if (data.length === 0) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><p>Sin resultados para los filtros aplicados</p></div>';
+    return;
+  }
+  grid.innerHTML = data.map(g => {
+    const inLib = myLibraryIds.has(g.id);
+    const priceHtml = g.price === 0
+      ? '<span class="price-tag free">Gratis</span>'
+      : `<span class="price-tag">$${g.price.toFixed(2)}</span>`;
+    return `
+    <div class="game-card" onclick="openDetail(${g.id})">
+      <div class="game-card-cover">
+        ${ICONS[g.genre] || '🎮'}
+        <span class="type-badge ${g.game_type}">${g.game_type.replace('_',' ')}</span>
+      </div>
+      <div class="game-card-body">
+        <h4 title="${g.title}">${g.title}</h4>
+        <div class="game-card-meta">${g.genre} · ${g.developer || '—'}</div>
+        <div class="game-card-footer">
+          ${priceHtml}
+          ${inLib
+            ? '<span class="in-library-badge">✓ En biblioteca</span>'
+            : `<button class="btn-primary btn-sm" onclick="event.stopPropagation();addToLibrary(${g.id},'${g.title.replace(/'/g,"\\'")}')">+ Añadir</button>`
+          }
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function clearFilters() {
+  document.getElementById('filterGenre').value = '';
+  document.getElementById('filterPrice').value = '';
+  loadGames();
+}
+
+// ── GAME DETAIL ───────────────────────────────────────────────────────────────
+async function openDetail(gameId) {
+  navigate('detail');
+  const content = document.getElementById('detail-content');
+  content.innerHTML = '<div class="loading-row"><div class="spinner"></div> Cargando...</div>';
+
+  const [gameRes, reviewRes] = await Promise.all([
+    req('GET', `/games/${gameId}`),
+    req('GET', `/games/${gameId}/reviews`)
+  ]);
+
+  if (!gameRes.ok) {
+    content.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>Error al cargar el juego</p></div>';
+    return;
+  }
+
+  const g = gameRes.data;
+  const reviews = reviewRes.ok && Array.isArray(reviewRes.data) ? reviewRes.data : [];
+  const inLib = myLibraryIds.has(g.id);
+  const avgRating = reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : null;
+  const stars = r => '★'.repeat(r) + '☆'.repeat(5 - r);
+
+  content.innerHTML = `
+    <div class="detail-layout">
+      <div>
+        <div class="detail-cover">${ICONS[g.genre] || '🎮'}</div>
+        <h1 class="detail-title">${g.title}</h1>
+        <div class="detail-meta">
+          <span>${g.genre}</span>
+          <span class="type-badge ${g.game_type}" style="border:none">${g.game_type.replace('_',' ')}</span>
+          ${g.developer ? `<span>${g.developer}</span>` : ''}
+          ${avgRating ? `<span>⭐ ${avgRating}/5 (${reviews.length} reseñas)</span>` : '<span>Sin reseñas aún</span>'}
+        </div>
+        <p class="detail-desc">${g.description || 'Sin descripción disponible.'}</p>
+
+        <div class="reviews-section">
+          <h3>Reseñas de la comunidad</h3>
+          ${currentUser ? `
+          <div class="review-form" id="review-form-${g.id}">
+            <h4>Escribe tu reseña</h4>
+            <div class="star-row" id="stars-${g.id}">
+              ${[1,2,3,4,5].map(i => `<span class="star" onclick="setRating(${g.id},${i})" data-val="${i}">★</span>`).join('')}
+            </div>
+            <div class="field"><textarea id="review-text-${g.id}" rows="3" placeholder="Cuéntale a la comunidad tu experiencia..."></textarea></div>
+            <button class="btn-primary btn-sm" onclick="submitReview(${g.id})">Publicar reseña</button>
+          </div>` : '<p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Inicia sesión para escribir una reseña.</p>'}
+          <div id="reviews-list-${g.id}">
+            ${reviews.length === 0
+              ? '<div class="empty" style="padding:24px 0"><div class="empty-icon">💬</div><p>Sé el primero en reseñar este juego</p></div>'
+              : reviews.map(r => `
+                <div class="review-card">
+                  <div class="review-header">
+                    <span class="review-user">Usuario #${r.user_id}</span>
+                    <span class="review-rating">${stars(r.rating)} ${r.rating}/5</span>
+                  </div>
+                  ${r.content ? `<p class="review-content">${r.content}</p>` : ''}
+                  <div class="review-date">${new Date(r.created_at).toLocaleDateString('es-CO', {year:'numeric',month:'long',day:'numeric'})}</div>
+                </div>`).join('')
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-sidebar">
+        <div class="detail-price ${g.price === 0 ? 'free' : ''}">${g.price === 0 ? 'Gratis' : '$' + g.price.toFixed(2)}</div>
+        <div class="detail-actions">
+          ${g.game_url && inLib
+            ? `<button class="btn-primary" style="background:#22c55e" onclick="window.location.href='${g.game_url}'">▶ Jugar ahora</button>`
+            : g.game_url && !inLib
+            ? `<button class="btn-secondary" disabled style="opacity:.5;cursor:default" title="Añade el juego a tu biblioteca para jugar">▶ Jugar (añade primero)</button>`
+            : ''
+          }
+          ${inLib
+            ? `<button class="btn-secondary" disabled style="opacity:.5;cursor:default">✓ Ya está en tu biblioteca</button>
+               <button class="btn-secondary" onclick="removeFromLibrary(${g.id},'${g.title.replace(/'/g,"\\'")}')">Quitar de biblioteca</button>`
+            : `<button class="btn-primary" onclick="addToLibrary(${g.id},'${g.title.replace(/'/g,"\\'")}')">+ Añadir a biblioteca</button>`
+          }
+          <button class="btn-secondary" onclick="navigate('store')">← Volver a la tienda</button>
+        </div>
+        <hr style="border-color:var(--line);margin:16px 0"/>
+        <div style="font-size:.8rem;color:var(--muted);line-height:1.8">
+          <div><b style="color:var(--text)">Desarrollador</b><br>${g.developer || '—'}</div>
+          <div style="margin-top:8px"><b style="color:var(--text)">Género</b><br>${g.genre}</div>
+          <div style="margin-top:8px"><b style="color:var(--text)">Tipo</b><br>${g.game_type.replace('_',' ')}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── REVIEWS ───────────────────────────────────────────────────────────────────
+function setRating(gameId, val) {
+  reviewRating = val;
+  document.querySelectorAll(`#stars-${gameId} .star`).forEach(s => {
+    s.classList.toggle('active', parseInt(s.dataset.val) <= val);
+  });
+}
+
+async function submitReview(gameId) {
+  if (!token) return toast('Inicia sesión para reseñar', 'warn');
+  if (!reviewRating) return toast('Selecciona una calificación con las estrellas', 'warn');
+  const content = document.getElementById(`review-text-${gameId}`).value.trim();
+  const { ok, data } = await req('POST', `/games/${gameId}/reviews`, { rating: reviewRating, content: content || null }, true);
+  if (ok) {
+    toast('Reseña publicada');
+    reviewRating = 0;
+    openDetail(gameId);
+  } else {
+    toast(data.message || 'Error al publicar', 'err');
+  }
+}
+
+// ── LIBRARY ───────────────────────────────────────────────────────────────────
+async function addToLibrary(gameId, title) {
+  if (!token) { toast('Inicia sesión para añadir juegos', 'warn'); navigate('auth'); return; }
+  const { ok, data } = await req('POST', `/library/${gameId}`, null, true);
+  if (ok) {
+    myLibraryIds.add(gameId);
+    toast(`"${title}" añadido a tu biblioteca`);
+    loadGames();
+  } else {
+    toast(data.message || 'Error al añadir', 'err');
+  }
+}
+
+async function removeFromLibrary(gameId, title) {
+  const { ok } = await req('DELETE', `/library/${gameId}`, null, true);
+  if (ok) {
+    myLibraryIds.delete(gameId);
+    toast(`"${title}" quitado de tu biblioteca`, 'info');
+    loadGames();
+    if (currentView === 'library') loadLibrary();
+    if (currentView === 'detail') openDetail(gameId);
+  } else {
+    toast('Error al quitar', 'err');
+  }
+}
+
+async function loadLibrary() {
+  const el = document.getElementById('library-content');
+  if (!token) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🔒</div><p>Inicia sesión para ver tu biblioteca</p></div>';
+    return;
+  }
+  el.innerHTML = '<div class="loading-row"><div class="spinner"></div> Cargando biblioteca...</div>';
+  const { ok, data } = await req('GET', '/library', null, true);
+  if (!ok || !Array.isArray(data) || data.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📚</div><p>Tu biblioteca está vacía — añade juegos desde la tienda</p></div>';
+    return;
+  }
+  el.innerHTML = `<div class="library-grid">${data.map(e => `
+    <div class="library-card">
+      <div class="library-icon">${ICONS[e.game.genre] || '🎮'}</div>
+      <div class="library-info">
+        <h4>${e.game.title}</h4>
+        <div class="lib-meta">${e.game.genre} · ${e.game.game_type.replace('_',' ')}</div>
+        <div class="lib-meta">Añadido: ${new Date(e.added_at).toLocaleDateString()}</div>
+        <div class="library-actions">
+          ${e.game.game_url ? `<button class="btn-primary btn-sm" onclick="window.location.href='${e.game.game_url}'">▶ Jugar</button>` : ''}
+          <button class="btn-secondary btn-sm" onclick="openDetail(${e.game_id})">Detalle</button>
+          <button class="btn-icon btn-sm" onclick="removeFromLibrary(${e.game_id},'${e.game.title.replace(/'/g,"\\'")}')">✕</button>
+        </div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+// ── PROFILE ───────────────────────────────────────────────────────────────────
+async function loadProfile() {
+  const el = document.getElementById('profile-content');
+  if (!token) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🔒</div><p>Inicia sesión para ver tu perfil</p></div>';
+    return;
+  }
+  el.innerHTML = '<div class="loading-row"><div class="spinner"></div> Cargando perfil...</div>';
+  const { ok, data } = await req('GET', '/library', null, true);
+  const library = ok && Array.isArray(data) ? data : [];
+  const initial = (currentUser.email || 'U')[0].toUpperCase();
+  el.innerHTML = `
+    <div class="profile-header">
+      <div class="profile-avatar">${initial}</div>
+      <div class="profile-info">
+        <h2>${currentUser.email}</h2>
+        <span class="role-badge ${currentUser.role}">${currentUser.role}</span>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num">${library.length}</div><div class="stat-label">Juegos en biblioteca</div></div>
+      <div class="stat-card"><div class="stat-num">${library.filter(e => e.game.price === 0).length}</div><div class="stat-label">Juegos gratuitos</div></div>
+      <div class="stat-card"><div class="stat-num">$${library.reduce((s,e) => s + e.game.price, 0).toFixed(2)}</div><div class="stat-label">Valor total</div></div>
+      <div class="stat-card"><div class="stat-num">${[...new Set(library.map(e => e.game.genre))].length}</div><div class="stat-label">Géneros distintos</div></div>
+    </div>
+    ${library.length > 0 ? `
+    <h3 style="font-size:1rem;font-weight:600;margin-bottom:12px">Géneros en tu biblioteca</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${[...new Set(library.map(e=>e.game.genre))].map(g=>`
+        <span style="background:var(--panel);border:1px solid var(--line);padding:4px 12px;border-radius:20px;font-size:.8rem;color:var(--muted)">${ICONS[g]||'🎮'} ${g}</span>
+      `).join('')}
+    </div>` : ''}`;
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────────
+async function loadAdminTable() {
+  if (!currentUser || currentUser.role !== 'admin') {
+    navigate('store'); toast('Acceso denegado', 'err'); return;
+  }
+  const tbody = document.getElementById('admin-table-body');
+  tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:24px">Cargando...</td></tr>';
+  const { ok, data } = await req('GET', '/games?limit=100');
+  if (!ok || !Array.isArray(data)) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center">Error al cargar</td></tr>';
+    return;
+  }
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:24px">No hay juegos</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(g => `
+    <tr>
+      <td style="color:var(--muted)">#${g.id}</td>
+      <td><b>${g.title}</b></td>
+      <td>${g.genre}</td>
+      <td><span class="type-badge ${g.game_type}" style="font-size:.72rem">${g.game_type.replace('_',' ')}</span></td>
+      <td>${g.price === 0 ? '<span style="color:var(--green)">Gratis</span>' : '$' + g.price.toFixed(2)}</td>
+      <td class="td-actions">
+        <button class="btn-icon btn-sm" onclick="openGameModal(${g.id})">✏️ Editar</button>
+        <button class="btn-danger btn-sm" onclick="openDeleteModal(${g.id})">🗑️ Borrar</button>
+      </td>
+    </tr>`).join('');
+}
+
+function openGameModal(gameId = null) {
+  document.getElementById('modal-game-id').value = gameId || '';
+  document.getElementById('modal-title').textContent = gameId ? 'Editar juego' : 'Nuevo juego';
+  if (!gameId) {
+    ['modal-title-input','modal-desc','modal-dev','modal-price'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('modal-genre').value = 'action';
+    document.getElementById('modal-type').value = 'indie';
+  } else {
+    req('GET', `/games/${gameId}`).then(({ ok, data }) => {
+      if (!ok) return;
+      document.getElementById('modal-title-input').value = data.title;
+      document.getElementById('modal-desc').value = data.description || '';
+      document.getElementById('modal-genre').value = data.genre;
+      document.getElementById('modal-type').value = data.game_type;
+      document.getElementById('modal-price').value = data.price;
+      document.getElementById('modal-dev').value = data.developer || '';
+    });
+  }
+  document.getElementById('game-modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('game-modal').classList.remove('open'); }
+
+async function saveGame() {
+  const gameId = document.getElementById('modal-game-id').value;
+  const body = {
+    title: document.getElementById('modal-title-input').value.trim(),
+    description: document.getElementById('modal-desc').value.trim() || null,
+    genre: document.getElementById('modal-genre').value,
+    game_type: document.getElementById('modal-type').value,
+    price: parseFloat(document.getElementById('modal-price').value) || 0,
+    developer: document.getElementById('modal-dev').value.trim() || null,
+  };
+  if (!body.title) return toast('El título es obligatorio', 'warn');
+  const isEdit = !!gameId;
+  const { ok, data } = await req(isEdit ? 'PUT' : 'POST', isEdit ? `/games/${gameId}` : '/games', body, true);
+  if (ok) {
+    toast(isEdit ? 'Juego actualizado' : 'Juego creado');
+    closeModal();
+    loadAdminTable();
+    await loadGames();
+  } else {
+    toast(data.message || 'Error al guardar', 'err');
+  }
+}
+
+function openDeleteModal(gameId) {
+  document.getElementById('delete-game-id').value = gameId;
+  document.getElementById('delete-modal').classList.add('open');
+}
+
+function closeDeleteModal() { document.getElementById('delete-modal').classList.remove('open'); }
+
+async function confirmDelete() {
+  const val = document.getElementById('delete-game-id').value;
+  const isUser = val.startsWith('user_');
+  const id = isUser ? val.replace('user_', '') : val;
+  const url = isUser ? `/users/${id}` : `/games/${id}`;
+  const { ok } = await req('DELETE', url, null, true);
+  if (ok) {
+    toast(isUser ? 'Usuario eliminado' : 'Juego eliminado', 'info');
+    closeDeleteModal();
+    document.querySelector('#delete-modal h3').textContent = '¿Eliminar juego?';
+    if (isUser) loadUsersTable(); else { loadAdminTable(); loadGames(); }
+  } else {
+    toast('Error al eliminar', 'err');
+  }
+}
+
+// Cerrar modales al hacer clic en el fondo
+document.getElementById('user-games-modal').addEventListener('click', e => { if(e.target.id==='user-games-modal') e.target.classList.remove('open'); });
+document.querySelectorAll('.modal-backdrop').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ── ADMIN TABS ───────────────────────────────────────────────────────────────
+function switchAdminTab(tab) {
+  document.getElementById('admin-tab-games').style.display = tab === 'games' ? 'block' : 'none';
+  document.getElementById('admin-tab-users').style.display = tab === 'users' ? 'block' : 'none';
+  document.querySelectorAll('.admin-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'games') || (i === 1 && tab === 'users'));
+  });
+  if (tab === 'users') loadUsersTable();
+}
+
+// ── USERS ADMIN ───────────────────────────────────────────────────────────────
+async function loadUsersTable() {
+  const tbody = document.getElementById('admin-users-body');
+  tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">Cargando...</td></tr>';
+  const { ok, data } = await req('GET', '/users', null, true);
+  if (!ok || !Array.isArray(data)) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);text-align:center">Error al cargar usuarios</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(u => `
+    <tr>
+      <td style="color:var(--muted)">#${u.id}</td>
+      <td><b>${u.username}</b></td>
+      <td style="color:var(--muted);font-size:.8rem">${u.email}</td>
+      <td><span class="role-pill ${u.role}">${u.role}</span></td>
+      <td style="color:var(--accent);text-align:center">${u.total_games}</td>
+      <td style="color:var(--muted);text-align:center">${u.total_minutes > 0 ? u.total_minutes + ' min' : '—'}</td>
+      <td class="td-actions">
+        <button class="btn-icon btn-sm" onclick="openUserGamesModal(${u.id},'${u.username}')" title="Ver juegos">📋</button>
+        <button class="btn-icon btn-sm" onclick="toggleUserRole(${u.id},'${u.role}')" title="${u.role === 'admin' ? 'Quitar admin' : 'Hacer admin'}">
+          ${u.role === 'admin' ? '⬇️' : '⬆️'}
+        </button>
+        <button class="btn-danger btn-sm" onclick="openDeleteUserModal(${u.id},'${u.username}')">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function openUserGamesModal(userId, username) {
+  document.getElementById('user-games-title').textContent = `Juegos de ${username}`;
+  document.getElementById('user-games-body').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px">Cargando...</td></tr>';
+  document.getElementById('user-games-modal').classList.add('open');
+  const { ok, data } = await req('GET', `/users/${userId}/games`, null, true);
+  if (!ok || !Array.isArray(data) || data.length === 0) {
+    document.getElementById('user-games-body').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px">Sin juegos en biblioteca</td></tr>';
+    return;
+  }
+  document.getElementById('user-games-body').innerHTML = data.map(g => `
+    <tr>
+      <td>${g.game_title}</td>
+      <td style="text-align:center;color:${g.total_minutes > 0 ? 'var(--accent)' : 'var(--muted)'}">
+        ${g.total_minutes > 0 ? g.total_minutes + ' min' : '—'}
+      </td>
+      <td style="color:var(--muted);font-size:.8rem">${new Date(g.added_at).toLocaleDateString()}</td>
+    </tr>`).join('');
+}
+
+async function toggleUserRole(userId, currentRole) {
+  const { ok, data } = await req('PUT', `/users/${userId}/role`, null, true);
+  if (ok) {
+    toast(`Rol cambiado a ${data.role}`, 'info');
+    loadUsersTable();
+  } else {
+    toast(data.message || 'Error al cambiar rol', 'err');
+  }
+}
+
+function openDeleteUserModal(userId, username) {
+  document.getElementById('delete-game-id').value = 'user_' + userId;
+  document.querySelector('#delete-modal h3').textContent = `¿Eliminar usuario "${username}"?`;
+  document.getElementById('delete-modal').classList.add('open');
+}
+
+// ── INIT — restaurar sesión desde localStorage ───────────────────────────────
+(async function restoreSession() {
+  const saved = loadSession();
+  if (saved) {
+    token = saved.token;
+    currentUser = { id: saved.uid, role: saved.role, email: saved.email };
+    updateNavAuth();
+    await loadMyLibraryIds();
+  }
+  loadGames();
+})();
+</script>
+
+<!-- ── USER GAMES MODAL ── -->
+<div class="modal-backdrop" id="user-games-modal">
+  <div class="modal" style="max-width:500px">
+    <h3 id="user-games-title">Juegos del usuario</h3>
+    <div class="admin-table-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>Juego</th><th style="text-align:center">Tiempo jugado</th><th>Añadido</th></tr></thead>
+        <tbody id="user-games-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="document.getElementById('user-games-modal').classList.remove('open')">Cerrar</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

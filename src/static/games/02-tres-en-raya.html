@@ -1,0 +1,19 @@
+<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title id="title"></title><link rel="stylesheet" href="styles.css"></head><body>
+  <nav class="game-topbar">
+    <a class="back-link" href="/">← Volver al catálogo</a>
+    <span class="game-title" id="gameName">3 en Raya</span>
+    <span class="session-msg" id="sessionMsg"></span>
+  </nav>
+  <main class="game-wrap">
+    <div class="session-panel">
+      <div class="session-info">
+        <h3>3 en Raya</h3>
+        <p>Inicia la partida para comenzar a jugar</p>
+      </div>
+      <div class="session-btns">
+        <button id="startBtn">▶ Iniciar partida</button>
+        <button id="endBtn" disabled>⏹ Finalizar</button>
+      </div>
+    </div>
+    <div id="area"></div>
+  </main><script>const GAME_NAME="3 en Raya";</script><script src="game-base.js"></script><script src="game-utils.js"></script><script>const ui=createGameShell({instructions:'Alinea 3 marcas en una cuadrícula de 3x3.'});let b=Array(9).fill(''),t='X',moves=0,ended=false;ui.board.className='board3';function check(p){const l=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];return l.some(a=>a.every(i=>b[i]===p));}function render(){ui.board.innerHTML='';b.forEach((v,i)=>{const k=document.createElement('button');k.textContent=v||'-';k.onclick=()=>{if(ended||b[i])return;b[i]=t;moves++;if(check(t)){ended=true;ui.stateLabel.textContent='Estado: fin - victoria de '+t;ui.feedback.textContent='Línea completada.';}else if(moves===9){ended=true;ui.stateLabel.textContent='Estado: fin - derrota compartida';ui.feedback.textContent='Empate: tablero lleno.';}else{t=t==='X'?'O':'X';ui.stateLabel.textContent='Estado: inicio - turno '+t;}ui.scoreLabel.textContent='Progreso: '+moves+'/9';render();};ui.board.appendChild(k);});}ui.restartBtn.onclick=()=>{b=Array(9).fill('');t='X';moves=0;ended=false;ui.stateLabel.textContent='Estado: listo (inicio pendiente)';ui.feedback.textContent='Reiniciado';ui.scoreLabel.textContent='Progreso: 0/9';render();};ui.scoreLabel.textContent='Progreso: 0/9';render();</script></body></html>

@@ -1,0 +1,99 @@
+<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title id="title"></title><link rel="stylesheet" href="styles.css"></head><body>
+  <nav class="game-topbar">
+    <a class="back-link" href="/">← Volver al catálogo</a>
+    <span class="game-title" id="gameName">Piedra Papel Tijera</span>
+    <span class="session-msg" id="sessionMsg"></span>
+  </nav>
+  <main class="game-wrap">
+    <div class="session-panel">
+      <div class="session-info">
+        <h3>Piedra Papel Tijera</h3>
+        <p>Inicia la partida para comenzar a jugar</p>
+      </div>
+      <div class="session-btns">
+        <button id="startBtn">▶ Iniciar partida</button>
+        <button id="endBtn" disabled>⏹ Finalizar</button>
+      </div>
+    </div>
+    <div id="area"></div>
+  </main><script>const GAME_NAME="Piedra Papel Tijera";</script><script src="game-base.js"></script><script>
+const MATCH_BEST_OF=5;
+const SCORE_KEY=`${KEY}_score_${user}_${GAME_NAME}`;
+const initialState={playerScore:0,botScore:0,draws:0,round:0};
+let gameState={...initialState,...JSON.parse(localStorage.getItem(SCORE_KEY)||'{}')};
+let selectedMove='';
+
+area.innerHTML=`
+  <div class="row">
+    <button data-move="Piedra">Piedra</button>
+    <button data-move="Papel">Papel</button>
+    <button data-move="Tijera">Tijera</button>
+  </div>
+  <p id="selectedMove">Selecciona tu jugada</p>
+  <div class="row">
+    <button id="nextRoundBtn">Nueva ronda</button>
+    <button id="resetScoreBtn">Reiniciar marcador</button>
+  </div>
+  <p id="scoreboard"></p>
+  <p id="matchStatus"></p>
+  <p id="m"></p>
+`;
+
+const moves=['Piedra','Papel','Tijera'];
+const winsAgainst={Piedra:'Tijera',Papel:'Piedra',Tijera:'Papel'};
+
+function saveScore(){localStorage.setItem(SCORE_KEY,JSON.stringify(gameState));}
+function renderScore(){
+  scoreboard.textContent=`Jugador ${gameState.playerScore} - Bot ${gameState.botScore} - Empates ${gameState.draws} (Ronda ${gameState.round})`;
+  const targetWins=Math.ceil(MATCH_BEST_OF/2);
+  if(gameState.playerScore>=targetWins||gameState.botScore>=targetWins){
+    matchStatus.textContent=gameState.playerScore>gameState.botScore
+      ?`¡Ganaste el match al mejor de ${MATCH_BEST_OF}!`
+      :`El bot ganó el match al mejor de ${MATCH_BEST_OF}.`;
+  }else{
+    matchStatus.textContent=`Match al mejor de ${MATCH_BEST_OF}: primer jugador en llegar a ${targetWins} victorias.`;
+  }
+}
+
+function playRound(){
+  if(!selectedMove){m.textContent='Primero elige Piedra, Papel o Tijera.';return;}
+  const botMove=moves[Math.random()*3|0];
+  gameState.round++;
+
+  if(selectedMove===botMove){
+    gameState.draws++;
+    m.textContent=`Ronda ${gameState.round}: Tú ${selectedMove} vs Bot ${botMove} => Empate`;
+  }else if(winsAgainst[selectedMove]===botMove){
+    gameState.playerScore++;
+    m.textContent=`Ronda ${gameState.round}: Tú ${selectedMove} vs Bot ${botMove} => Ganaste`;
+  }else{
+    gameState.botScore++;
+    m.textContent=`Ronda ${gameState.round}: Tú ${selectedMove} vs Bot ${botMove} => Gana el bot`;
+  }
+
+  saveScore();
+  renderScore();
+}
+
+[...area.querySelectorAll('[data-move]')].forEach(btn=>{
+  btn.onclick=()=>{
+    selectedMove=btn.dataset.move;
+    selectedMoveEl.textContent=`Tu jugada seleccionada: ${selectedMove}`;
+  };
+});
+
+nextRoundBtn.onclick=playRound;
+resetScoreBtn.onclick=()=>{
+  gameState={...initialState};
+  selectedMove='';
+  selectedMoveEl.textContent='Selecciona tu jugada';
+  m.textContent='Marcador reiniciado.';
+  saveScore();
+  renderScore();
+};
+
+const selectedMoveEl=document.getElementById('selectedMove');
+const scoreboard=document.getElementById('scoreboard');
+const matchStatus=document.getElementById('matchStatus');
+renderScore();
+</script></body></html>

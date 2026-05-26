@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="title"></title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    #area { margin-top: 1rem; }
+    .ms-ui { display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:.75rem; font-weight:600; }
+    .ms-board { display:grid; gap:4px; width:max-content; user-select:none; }
+    .ms-cell {
+      width:32px; height:32px; border:1px solid #888; border-radius:4px;
+      font-weight:700; cursor:pointer; background:#e2e8f0;
+    }
+    .ms-cell.revealed { background:#f8fafc; cursor:default; }
+    .ms-cell.mine-hit { background:#fecaca; }
+    .ms-cell.flagged { background:#fde68a; }
+  </style>
+</head>
+<body>
+  <nav class="game-topbar">
+    <a class="back-link" href="/">← Volver al catálogo</a>
+    <span class="game-title" id="gameName">Buscaminas Lite</span>
+    <span class="session-msg" id="sessionMsg"></span>
+  </nav>
+  <main class="game-wrap">
+    <div class="session-panel">
+      <div class="session-info">
+        <h3>Buscaminas Lite</h3>
+        <p>Inicia la partida para comenzar a jugar</p>
+      </div>
+      <div class="session-btns">
+        <button id="startBtn">▶ Iniciar partida</button>
+        <button id="endBtn" disabled>⏹ Finalizar</button>
+      </div>
+    </div>
+    <div id="area"></div>
+  </main>
+
+  <script>const GAME_NAME = "Buscaminas Lite";</script>
+  <script src="game-base.js"></script>
+  <script>
+    const DIFFICULTIES = {
+      easy: { rows: 8, cols: 8, mines: 10 }
+    };
+
+    let config = DIFFICULTIES.easy;
+    let board = [];
+    let gameOver = false;
+    let won = false;
+    let firstRevealDone = false;
+    let flagsUsed = 0;
+    let revealedSafeCells = 0;
+    let timerId = null;
+    let seconds = 0;
+
+    const areaEl = document.getElementById('area');
+    areaEl.innerHTML = `
+      <div class="ms-ui">
+        <span>Minas restantes: <strong id="minesLeft">0</strong></span>
+        <span>Tiempo: <strong id="timer">0</strong>s</span>
+        <span>Estado: <strong id="status">Listo</strong></span>
+      </div>
+      <div id="board" class="ms-board"></div>
+    `;
+
+    const boardEl = document.getElementById('board');
+    const minesLeftEl = document.getElementById('minesLeft');
+    const timerEl = document.getElementById('timer');
+    const statusEl = document.getElementById('status');
+
+    function makeBoard() {
+      board = Array.from({ length: config.rows }, () =>
+        Array.from({ length: config.cols }, () => ({
+          mine: false,
+          revealed: false,
+          flagged: false,
+          adjacent: 0
+        }))
+      );
+    }
+
+    function inBounds(r, c) {
+      return r >= 0 && r < config.rows && c >= 0 && c < config.cols;
+    }
+
+    function neighbors(r, c) {
+      const out = [];
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr;
+          const nc = c + dc;
+          if (inBounds(nr, nc)) out.push([nr, nc]);
+        }
+      }
+      return out;
+    }
+
+    function placeMines() {
+      const used = new Set();
+      while (used.size < config.mines) {
+        const idx = Math.floor(Math.random() * config.rows * config.cols);
+        if (used.has(idx)) continue;
+        used.add(idx);
+        const r = Math.floor(idx / config.cols);
+        const c = idx % config.cols;
+        board[r][c].mine = true;
+      }
+    }
+
+    function computeAdjacents() {
+      for (let r = 0; r < config.rows; r++) {
+        for (let c = 0; c < config.cols; c++) {
+          if (board[r][c].mine) continue;
+          board[r][c].adjacent = neighbors(r, c).reduce(
+            (count, [nr, nc]) => count + (board[nr][nc].mine ? 1 : 0),
+            0
+          );
+        }
+      }
+    }
+
+    function renderBoard() {
+      boardEl.style.gridTemplateColumns = `repeat(${config.cols}, 32px)`;
+      boardEl.innerHTML = '';
+      for (let r = 0; r < config.rows; r++) {
+        for (let c = 0; c < config.cols; c++) {
+          const cell = board[r][c];
+          const btn = document.createElement('button');
+          btn.className = 'ms-cell';
+          btn.dataset.r = r;
+          btn.dataset.c = c;
+
+          if (cell.flagged && !cell.revealed) {
+            btn.classList.add('flagged');
+            btn.textContent = '🚩';
+          } else if (!cell.revealed) {
+            btn.textContent = '□';
+          } else if (cell.mine) {
+            btn.textContent = '💣';
+            btn.classList.add('revealed');
+          } else {
+            btn.classList.add('revealed');
+            btn.textContent = cell.adjacent === 0 ? '' : String(cell.adjacent);
+          }
+
+          btn.addEventListener('click', () => onLeftClick(r, c));
+          btn.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            onRightClick(r, c);
+          });
+          boardEl.appendChild(btn);
+        }
+      }
+      updateUI();
+    }
+
+    function revealAllMines(triggerR, triggerC) {
+      for (let r = 0; r < config.rows; r++) {
+        for (let c = 0; c < config.cols; c++) {
+          if (board[r][c].mine) board[r][c].revealed = true;
+        }
+      }
+      const idx = triggerR * config.cols + triggerC;
+      const hitBtn = boardEl.children[idx];
+      if (hitBtn) hitBtn.classList.add('mine-hit');
+    }
+
+    function floodReveal(startR, startC) {
+      const q = [[startR, startC]];
+      const seen = new Set([`${startR},${startC}`]);
+
+      while (q.length) {
+        const [r, c] = q.shift();
+        const cell = board[r][c];
+
+        if (cell.revealed || cell.flagged) continue;
+        cell.revealed = true;
+        if (!cell.mine) revealedSafeCells++;
+
+        if (cell.adjacent !== 0) continue;
+        for (const [nr, nc] of neighbors(r, c)) {
+          const key = `${nr},${nc}`;
+          if (!seen.has(key) && !board[nr][nc].mine) {
+            seen.add(key);
+            q.push([nr, nc]);
+          }
+        }
+      }
+    }
+
+    function onLeftClick(r, c) {
+      if (gameOver) return;
+      const cell = board[r][c];
+      if (cell.revealed || cell.flagged) return;
+
+      if (!firstRevealDone) {
+        firstRevealDone = true;
+        statusEl.textContent = 'Jugando';
+        startTimer();
+      }
+
+      if (cell.mine) {
+        gameOver = true;
+        won = false;
+        revealAllMines(r, c);
+        stopTimer();
+        statusEl.textContent = 'Perdiste';
+        renderBoard();
+        return;
+      }
+
+      floodReveal(r, c);
+      checkWin();
+      renderBoard();
+    }
+
+    function onRightClick(r, c) {
+      if (gameOver) return;
+      const cell = board[r][c];
+      if (cell.revealed) return;
+
+      cell.flagged = !cell.flagged;
+      flagsUsed += cell.flagged ? 1 : -1;
+      renderBoard();
+    }
+
+    function checkWin() {
+      const safeTotal = config.rows * config.cols - config.mines;
+      if (revealedSafeCells === safeTotal) {
+        gameOver = true;
+        won = true;
+        stopTimer();
+        statusEl.textContent = 'Ganaste';
+      }
+    }
+
+    function updateUI() {
+      minesLeftEl.textContent = Math.max(0, config.mines - flagsUsed);
+      timerEl.textContent = String(seconds);
+      if (!gameOver && !firstRevealDone) statusEl.textContent = 'Listo';
+      if (!gameOver && firstRevealDone) statusEl.textContent = 'Jugando';
+      if (gameOver && won) statusEl.textContent = 'Ganaste';
+      if (gameOver && !won) statusEl.textContent = 'Perdiste';
+    }
+
+    function startTimer() {
+      stopTimer();
+      timerId = setInterval(() => {
+        seconds++;
+        timerEl.textContent = String(seconds);
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerId) clearInterval(timerId);
+      timerId = null;
+    }
+
+    function newGame() {
+      config = DIFFICULTIES.easy;
+      gameOver = false;
+      won = false;
+      firstRevealDone = false;
+      flagsUsed = 0;
+      revealedSafeCells = 0;
+      seconds = 0;
+      stopTimer();
+
+      makeBoard();
+      placeMines();
+      computeAdjacents();
+      renderBoard();
+    }
+
+    newGame();
+  </script>
+</body>
+</html>

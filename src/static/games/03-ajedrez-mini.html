@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="title"></title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav class="game-topbar">
+    <a class="back-link" href="/">← Volver al catálogo</a>
+    <span class="game-title" id="gameName">Ajedrez Mini</span>
+    <span class="session-msg" id="sessionMsg"></span>
+  </nav>
+  <main class="game-wrap">
+    <div class="session-panel">
+      <div class="session-info">
+        <h3>Ajedrez Mini</h3>
+        <p>Inicia la partida para comenzar a jugar</p>
+      </div>
+      <div class="session-btns">
+        <button id="startBtn">▶ Iniciar partida</button>
+        <button id="endBtn" disabled>⏹ Finalizar</button>
+      </div>
+    </div>
+    <div id="area"></div>
+  </main>
+
+  <script>const GAME_NAME = "Ajedrez Mini";</script>
+  <script src="game-base.js"></script>
+  <script>
+    area.innerHTML = `
+      <p>Mini-ajedrez: mueve piezas blancas, luego responde una jugada aleatoria negra.</p>
+      <div id="board" class="chess-board"></div>
+      <p id="status">Turno: Blancas</p>
+    `;
+
+    const boardEl = document.getElementById("board");
+    const statusEl = document.getElementById("status");
+
+    const initial = [
+      ["♜","♞","♝","♛","♚","♝","♞","♜"],
+      ["♟","♟","♟","♟","♟","♟","♟","♟"],
+      ["","","","","","","",""] ,
+      ["","","","","","","",""] ,
+      ["","","","","","","",""] ,
+      ["","","","","","","",""] ,
+      ["♙","♙","♙","♙","♙","♙","♙","♙"],
+      ["♖","♘","♗","♕","♔","♗","♘","♖"]
+    ];
+
+    let board = initial.map(r => [...r]);
+    let selected = null;
+    let whiteTurn = true;
+
+    const whitePieces = new Set(["♙","♖","♘","♗","♕","♔"]);
+    const blackPieces = new Set(["♟","♜","♞","♝","♛","♚"]);
+
+    function inBoard(r, c) { return r >= 0 && c >= 0 && r < 8 && c < 8; }
+    function pieceAt(r, c) { return board[r][c]; }
+    function isWhite(p) { return whitePieces.has(p); }
+    function isBlack(p) { return blackPieces.has(p); }
+
+    function renderBoard() {
+      boardEl.innerHTML = "";
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const sq = document.createElement("button");
+          sq.className = `chess-square ${(r + c) % 2 === 0 ? "light" : "dark"}`;
+          if (selected && selected.r === r && selected.c === c) sq.classList.add("selected");
+          sq.textContent = board[r][c];
+          sq.addEventListener("click", () => clickSquare(r, c));
+          boardEl.appendChild(sq);
+        }
+      }
+    }
+
+    function pathClear(r1, c1, r2, c2) {
+      const dr = Math.sign(r2 - r1);
+      const dc = Math.sign(c2 - c1);
+      let r = r1 + dr, c = c1 + dc;
+      while (r !== r2 || c !== c2) {
+        if (pieceAt(r, c)) return false;
+        r += dr; c += dc;
+      }
+      return true;
+    }
+
+    function legalMove(p, r1, c1, r2, c2) {
+      if (!inBoard(r2, c2) || (r1 === r2 && c1 === c2)) return false;
+      const target = pieceAt(r2, c2);
+      if (target && ((isWhite(p) && isWhite(target)) || (isBlack(p) && isBlack(target)))) return false;
+
+      const dr = r2 - r1;
+      const dc = c2 - c1;
+      const adr = Math.abs(dr), adc = Math.abs(dc);
+
+      if (p === "♙") {
+        if (dc === 0 && dr === -1 && !target) return true;
+        if (r1 === 6 && dc === 0 && dr === -2 && !target && !pieceAt(5, c1)) return true;
+        if (adr === 1 && dr === -1 && target && isBlack(target)) return true;
+      }
+      if (p === "♟") {
+        if (dc === 0 && dr === 1 && !target) return true;
+        if (r1 === 1 && dc === 0 && dr === 2 && !target && !pieceAt(2, c1)) return true;
+        if (adr === 1 && dr === 1 && target && isWhite(target)) return true;
+      }
+      if (p === "♖" || p === "♜") return (dr === 0 || dc === 0) && pathClear(r1, c1, r2, c2);
+      if (p === "♗" || p === "♝") return adr === adc && pathClear(r1, c1, r2, c2);
+      if (p === "♕" || p === "♛") return ((dr === 0 || dc === 0) || (adr === adc)) && pathClear(r1, c1, r2, c2);
+      if (p === "♘" || p === "♞") return (adr === 2 && adc === 1) || (adr === 1 && adc === 2);
+      if (p === "♔" || p === "♚") return adr <= 1 && adc <= 1;
+
+      return false;
+    }
+
+    function movePiece(r1, c1, r2, c2) {
+      board[r2][c2] = board[r1][c1];
+      board[r1][c1] = "";
+    }
+
+    function allLegalMoves(forWhite) {
+      const moves = [];
+      for (let r1 = 0; r1 < 8; r1++) {
+        for (let c1 = 0; c1 < 8; c1++) {
+          const p = pieceAt(r1, c1);
+          if (!p) continue;
+          if (forWhite && !isWhite(p)) continue;
+          if (!forWhite && !isBlack(p)) continue;
+          for (let r2 = 0; r2 < 8; r2++) {
+            for (let c2 = 0; c2 < 8; c2++) {
+              if (legalMove(p, r1, c1, r2, c2)) moves.push({ r1, c1, r2, c2 });
+            }
+          }
+        }
+      }
+      return moves;
+    }
+
+    function blackAutoMove() {
+      const moves = allLegalMoves(false);
+      if (!moves.length) {
+        statusEl.textContent = "Negras sin jugadas. Fin del mini-ajedrez.";
+        return;
+      }
+      const mv = moves[Math.floor(Math.random() * moves.length)];
+      movePiece(mv.r1, mv.c1, mv.r2, mv.c2);
+      whiteTurn = true;
+      statusEl.textContent = "Turno: Blancas";
+      renderBoard();
+    }
+
+    function clickSquare(r, c) {
+      const p = pieceAt(r, c);
+      if (!whiteTurn) return;
+
+      if (!selected) {
+        if (p && isWhite(p)) selected = { r, c };
+        renderBoard();
+        return;
+      }
+
+      const sp = pieceAt(selected.r, selected.c);
+      if (p && isWhite(p)) {
+        selected = { r, c };
+        renderBoard();
+        return;
+      }
+
+      if (legalMove(sp, selected.r, selected.c, r, c)) {
+        movePiece(selected.r, selected.c, r, c);
+        selected = null;
+        whiteTurn = false;
+        statusEl.textContent = "Turno: Negras (auto)";
+        renderBoard();
+        setTimeout(blackAutoMove, 450);
+      } else {
+        statusEl.textContent = "Movimiento inválido para esa ficha.";
+      }
+    }
+
+    renderBoard();
+  </script>
+</body>
+</html>

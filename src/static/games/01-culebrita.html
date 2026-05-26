@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="title"></title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav class="game-topbar">
+    <a class="back-link" href="/">← Volver al catálogo</a>
+    <span class="game-title" id="gameName">Culebrita</span>
+    <span class="session-msg" id="sessionMsg"></span>
+  </nav>
+  <main class="game-wrap">
+    <div class="session-panel">
+      <div class="session-info">
+        <h3>Culebrita</h3>
+        <p>Inicia la partida para comenzar a jugar</p>
+      </div>
+      <div class="session-btns">
+        <button id="startBtn">▶ Iniciar partida</button>
+        <button id="endBtn" disabled>⏹ Finalizar</button>
+      </div>
+    </div>
+    <div id="area"></div>
+  </main>
+
+  <script>const GAME_NAME = "Culebrita";</script>
+  <script src="game-base.js"></script>
+  <script>
+    area.innerHTML = `
+      <p>Usa las flechas para mover la culebra. Come 🍎 para crecer.</p>
+      <canvas id="snakeCanvas" width="360" height="360"></canvas>
+      <p id="snakeInfo">Puntaje: 0</p>
+    `;
+
+    const canvas = document.getElementById("snakeCanvas");
+    const ctx = canvas.getContext("2d");
+    const info = document.getElementById("snakeInfo");
+
+    const size = 18;
+    const cells = canvas.width / size;
+
+    let snake = [{ x: 5, y: 5 }];
+    let dir = { x: 1, y: 0 };
+    let nextDir = { x: 1, y: 0 };
+    let food = randomFood();
+    let score = 0;
+
+    function randomFood() {
+      let p;
+      do {
+        p = { x: Math.floor(Math.random() * cells), y: Math.floor(Math.random() * cells) };
+      } while (snake.some(s => s.x === p.x && s.y === p.y));
+      return p;
+    }
+
+    function resetGame() {
+      snake = [{ x: 5, y: 5 }];
+      dir = { x: 1, y: 0 };
+      nextDir = { x: 1, y: 0 };
+      score = 0;
+      food = randomFood();
+      info.textContent = `Puntaje: ${score}`;
+    }
+
+    function drawCell(x, y, color, radius = 4) {
+      const px = x * size;
+      const py = y * size;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(px + 1, py + 1, size - 2, size - 2, radius);
+      ctx.fill();
+    }
+
+    function draw() {
+      ctx.fillStyle = "#0b1220";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let y = 0; y < cells; y++) {
+        for (let x = 0; x < cells; x++) {
+          if ((x + y) % 2 === 0) {
+            ctx.fillStyle = "#101a2f";
+            ctx.fillRect(x * size, y * size, size, size);
+          }
+        }
+      }
+
+      drawCell(food.x, food.y, "#ef4444", 8);
+
+      snake.forEach((p, i) => {
+        drawCell(p.x, p.y, i === 0 ? "#22c55e" : "#16a34a", 5);
+      });
+    }
+
+    function step() {
+      dir = nextDir;
+      const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+      if (
+        head.x < 0 || head.y < 0 || head.x >= cells || head.y >= cells ||
+        snake.some((p) => p.x === head.x && p.y === head.y)
+      ) {
+        resetGame();
+        draw();
+        return;
+      }
+
+      snake.unshift(head);
+
+      if (head.x === food.x && head.y === food.y) {
+        score += 1;
+        info.textContent = `Puntaje: ${score}`;
+        food = randomFood();
+      } else {
+        snake.pop();
+      }
+
+      draw();
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowUp" && dir.y !== 1) nextDir = { x: 0, y: -1 };
+      if (e.key === "ArrowDown" && dir.y !== -1) nextDir = { x: 0, y: 1 };
+      if (e.key === "ArrowLeft" && dir.x !== 1) nextDir = { x: -1, y: 0 };
+      if (e.key === "ArrowRight" && dir.x !== -1) nextDir = { x: 1, y: 0 };
+    });
+
+    resetGame();
+    draw();
+    setInterval(step, 130);
+  </script>
+</body>
+</html>
